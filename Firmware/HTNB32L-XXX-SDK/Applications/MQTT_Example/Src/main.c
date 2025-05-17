@@ -22,6 +22,12 @@
 #include "ic_qcx212.h"
 #include "HT_ic_qcx212.h"
 #include "semphr.h"
+#include "htnb32lxxx_hal_usart.h"
+
+static uint32_t uart_cntrl = (ARM_USART_MODE_ASYNCHRONOUS | ARM_USART_DATA_BITS_8 | ARM_USART_PARITY_NONE |
+                                ARM_USART_STOP_BITS_1 | ARM_USART_FLOW_CONTROL_NONE);
+
+extern USART_HandleTypeDef huart1;
 
 SemaphoreHandle_t xSemaforo;
 
@@ -32,6 +38,7 @@ static uint32_t uart_cntrl = (ARM_USART_MODE_ASYNCHRONOUS | ARM_USART_DATA_BITS_
 extern USART_HandleTypeDef huart1;
 
 //GPIO10 - BUTTON
+
 #define BUTTON_INSTANCE          0                  /**</ Button pin instance. */
 #define BUTTON_PIN               10                 /**</ Button pin number. */
 #define BUTTON_PAD_ID            25                 /**</ Button Pad ID. */
@@ -145,6 +152,90 @@ void Task2(void *pvParameters) {
     }
 }
 
+void HT_App(void) {
+    char case_num;
+    char stop_1;
+    char stop_2;
+    
+    while(1) {
+        printf("Case 0: 100ms\r\n");
+        printf("Case 1: 400ms\r\n");
+        printf("Case 2: 700ms\r\n");
+        printf("Case 3: 1000ms\r\n");
+        
+
+        __set_BASEPRI(0);
+
+        case_num = (char)fgetc(NULL);
+        printf("%c\r\n",case_num);
+
+        switch(case_num) {
+            case '0':
+                while(1){
+                  stop_1 = (char)fgetc(NULL);
+                  printf("%c\r\n",stop_1);
+                  if(stop_1 == "p"){
+                    break;
+                  }
+            break;
+                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+                  delay_us(100000);
+                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+                  delay_us(100000);
+                }
+            break;
+            case '1':
+                while(1){
+                  stop_1 = (char)fgetc(NULL);
+                  printf("%c\r\n",stop_1);
+                  if(stop_1 == "p"){
+                    break;
+                  }
+                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+                  delay_us(400000);
+                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+                  delay_us(400000);
+                }
+            break;    
+            case '2':
+                while(1){
+                  stop_1 = (char)fgetc(NULL);
+                  printf("%c\r\n",stop_1);
+                  if(stop_1 == "p"){
+                    break;
+                  }
+                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+                  delay_us(700000);
+                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+                  delay_us(700000);
+                }
+            break;
+            case '3':
+                while(1){
+                  stop_1 = (char)fgetc(NULL);
+                  printf("%c\r\n",stop_1);
+                  if(stop_1 == "p"){
+                    break;
+                  }
+                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+                  delay_us(1000000);
+                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+                  delay_us(1000000);
+                }
+            break;
+            default: 
+                printf("Error! Wrong option!\n");
+                break;
+        }
+      printf("SE DESEJAR SAIR, DIGITE *PARA*");
+      stop_2 = (char)fgetc(NULL);
+      printf("%c\r\n",stop_2);
+      if(stop_2 == "PARA"){
+        break;
+      }
+    }
+}
+
 
 
 /**
@@ -153,21 +244,23 @@ void Task2(void *pvParameters) {
   \return
 */
 void main_entry(void) {
+  HAL_USART_InitPrint(&huart1, GPR_UART1ClkSel_26M, uart_cntrl, 115200);
 
-  xSemaforo = xSemaphoreCreateBinary();
-if (xSemaforo == NULL) {
-    printf("Erro ao criar a semáforo.\n");
-    while (1);
-}
+    printf("Exemplo FreeRTOS\n");
+//  xSemaforo = xSemaphoreCreateBinary();
+// if (xSemaforo == NULL) {
+//     printf("Erro ao criar a semáforo.\n");
+//     while (1);
+// }
 
     HT_GPIO_InitButton();
     HT_GPIO_InitLed();
     HT_GPIO_InitLed2();
     HT_GPIO_InitLed3();
+    HT_App();
     slpManNormalIOVoltSet(IOVOLT_3_30V);
 
-    HAL_USART_InitPrint(&huart1, GPR_UART1ClkSel_26M, uart_cntrl, 115200);
-    printf("Exemplo FreeRTOS\n");
+
 
     xTaskCreate(Task1, "Blink", 128, NULL, 1, NULL);
     xTaskCreate(Task2, "Print", 128, NULL, 1, NULL);
