@@ -43,6 +43,18 @@ extern USART_HandleTypeDef huart1;
 #define LED_PAD_ID               14                 /**</ LED Pad ID. */
 #define LED_PAD_ALT_FUNC         PAD_MuxAlt0        /**</ LED pin alternate function. */
 
+//GPIO4 - LED
+#define LED2_INSTANCE             0                  /**</ LED pin instance. */
+#define LED2_GPIO_PIN             4                  /**</ LED pin number. */
+#define LED2_PAD_ID               15                 /**</ LED Pad ID. */
+#define LED2_PAD_ALT_FUNC         PAD_MuxAlt0        /**</ LED pin alternate function. */
+
+//GPIO5 - LED
+#define LED3_INSTANCE             0                  /**</ LED pin instance. */
+#define LED3_GPIO_PIN             5                  /**</ LED pin number. */
+#define LED3_PAD_ID               16                 /**</ LED Pad ID. */
+#define LED3_PAD_ALT_FUNC         PAD_MuxAlt0        /**</ LED pin alternate function. */
+
 #define LED_ON  1                                   /**</ LED on. */
 #define LED_OFF 0                                   /**</ LED off. */
 
@@ -70,9 +82,39 @@ static void HT_GPIO_InitLed(void) {
   GPIO_InitStruct.pad_id = LED_PAD_ID;
   GPIO_InitStruct.gpio_pin = LED_GPIO_PIN;
   GPIO_InitStruct.pin_direction = GPIO_DirectionOutput;
-  GPIO_InitStruct.init_output = 0;
+  GPIO_InitStruct.init_output = 1;
   GPIO_InitStruct.pull = PAD_AutoPull;
   GPIO_InitStruct.instance = LED_INSTANCE;
+  GPIO_InitStruct.exti = GPIO_EXTI_DISABLED;
+
+  HT_GPIO_Init(&GPIO_InitStruct);
+}
+
+static void HT_GPIO_InitLed2(void) {
+  GPIO_InitType GPIO_InitStruct = {0};
+
+  GPIO_InitStruct.af = PAD_MuxAlt0;
+  GPIO_InitStruct.pad_id = LED2_PAD_ID;
+  GPIO_InitStruct.gpio_pin = LED2_GPIO_PIN;
+  GPIO_InitStruct.pin_direction = GPIO_DirectionOutput;
+  GPIO_InitStruct.init_output = 1;
+  GPIO_InitStruct.pull = PAD_AutoPull;
+  GPIO_InitStruct.instance = LED2_INSTANCE;
+  GPIO_InitStruct.exti = GPIO_EXTI_DISABLED;
+
+  HT_GPIO_Init(&GPIO_InitStruct);
+}
+
+static void HT_GPIO_InitLed3(void) {
+  GPIO_InitType GPIO_InitStruct = {0};
+  
+  GPIO_InitStruct.af = PAD_MuxAlt0;
+  GPIO_InitStruct.pad_id = LED3_PAD_ID;
+  GPIO_InitStruct.gpio_pin = LED3_GPIO_PIN;
+  GPIO_InitStruct.pin_direction = GPIO_DirectionOutput;
+  GPIO_InitStruct.init_output = 1;
+  GPIO_InitStruct.pull = PAD_AutoPull;
+  GPIO_InitStruct.instance = LED3_INSTANCE;
   GPIO_InitStruct.exti = GPIO_EXTI_DISABLED;
 
   HT_GPIO_Init(&GPIO_InitStruct);
@@ -82,7 +124,7 @@ static void HT_GPIO_InitLed(void) {
 void Task1(void *pvParameters) {
     bool estado_anterior = 1;
     while (1) {
-        bool estado_atual = HT_GPIO_PinRead(BUTTON_INSTANCE, BUTTON_PIN);  // Pressionado = 0
+        bool estado_atual = !HT_GPIO_PinRead(BUTTON_INSTANCE, BUTTON_PIN);  // Pressionado = 0
         if (estado_atual == 0 && estado_anterior == 1) {  // Transição de solto → pressionado
             xSemaphoreGive(xSemaforo);  // Sinaliza para a Task2
         }
@@ -98,7 +140,7 @@ void Task2(void *pvParameters) {
     while (1) {
         if (xSemaphoreTake(xSemaforo, portMAX_DELAY)) {
             led_state = !led_state;  // Alterna o estado do LED
-            HT_GPIO_WritePin(LED_GPIO_PIN, LED_INSTANCE, led_state);
+            HT_GPIO_WritePin(LED3_GPIO_PIN, LED3_INSTANCE, led_state);
         }
     }
 }
@@ -120,6 +162,8 @@ if (xSemaforo == NULL) {
 
     HT_GPIO_InitButton();
     HT_GPIO_InitLed();
+    HT_GPIO_InitLed2();
+    HT_GPIO_InitLed3();
     slpManNormalIOVoltSet(IOVOLT_3_30V);
 
     HAL_USART_InitPrint(&huart1, GPR_UART1ClkSel_26M, uart_cntrl, 115200);
