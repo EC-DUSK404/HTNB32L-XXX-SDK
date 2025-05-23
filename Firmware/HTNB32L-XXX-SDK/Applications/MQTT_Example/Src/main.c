@@ -193,103 +193,6 @@ void TaskUart(void *pvParameters)
   }
 }
 
-void HT_App(void) {
-    char case_num;
-    char stop_1;
-    char stop_2;
-    
-    while(1) {
-        printf("Case 0: 100ms\r\n");
-        printf("Case 1: 400ms\r\n");
-        printf("Case 2: 700ms\r\n");
-        printf("Case 3: 1000ms\r\n");
-        
-        __set_BASEPRI(0);
-
-        case_num = (char)fgetc(NULL);
-        printf("%c\r\n",case_num);
-
-        switch(case_num) {
-            case '0':
-                while(1){
-                    printf("Quantas repetiçoes deseja?");
-                    stop_1 = (char)fgetc(NULL);
-                    printf("%c\r\n",stop_1);
-                    if(stop_1 == NULL){
-                    
-                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
-                      delay_us(100000);
-                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
-                      delay_us(100000);
-                    }
-                    else{
-                      break;
-                    }
-                }
-            break;
-            case '1':
-                while(1){
-                    stop_1 = (char)fgetc(NULL);
-                    printf("%c\r\n",stop_1);
-                    if(stop_1 == NULL){
-                    
-                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
-                      delay_us(400000);
-                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
-                      delay_us(400000);
-                    }
-                    else{
-                      break;
-                    }
-                }
-            break;    
-            case '2':
-                while(1){
-                    stop_1 = (char)fgetc(NULL);
-                    printf("%c\r\n",stop_1);
-                    if(stop_1 == NULL){
-                    
-                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
-                      delay_us(700000);
-                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
-                      delay_us(700000);
-                    }
-                    else{
-                      break;
-                    }
-                }
-            break;
-            case '3':
-                while(1){
-                     stop_1 = (char)fgetc(NULL);
-                     printf("%c\r\n",stop_1);
-                     if(stop_1 == 1){
-                   
-                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
-                      delay_us(1000000);
-                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
-                      delay_us(1000000);
-                    }
-                    else{
-                      break;
-                    }
-                }
-            break;
-            default: 
-                printf("Error! Wrong option!\n");
-            break;
-        }
-      printf("SE DESEJAR SAIR, DIGITE *PARA*");
-      stop_2 = (char)fgetc(NULL);
-      printf("%c\r\n",stop_2);
-      if(stop_2 == "PARA"){
-        break;
-      }
-    }
-}
-
-
-
 /**
   \fn          int main_entry(void)
   \brief       main entry function.
@@ -311,7 +214,6 @@ void main_entry(void) {
     HT_GPIO_InitLed();
     HT_GPIO_InitLed2();
     HT_GPIO_InitLed3();
-    // HT_App();
     slpManNormalIOVoltSet(IOVOLT_3_30V);
 
 
