@@ -23,6 +23,10 @@
 #include "HT_ic_qcx212.h"
 #include "semphr.h"
 #include "htnb32lxxx_hal_usart.h"
+#include "stdlib.h"
+#include "adc_qcx212.h"
+#include <stdio.h>
+
 
 static uint32_t uart_cntrl = (ARM_USART_MODE_ASYNCHRONOUS | ARM_USART_DATA_BITS_8 | ARM_USART_PARITY_NONE |
                                 ARM_USART_STOP_BITS_1 | ARM_USART_FLOW_CONTROL_NONE);
@@ -30,12 +34,6 @@ static uint32_t uart_cntrl = (ARM_USART_MODE_ASYNCHRONOUS | ARM_USART_DATA_BITS_
 extern USART_HandleTypeDef huart1;
 
 SemaphoreHandle_t xSemaforo;
-
-
-static uint32_t uart_cntrl = (ARM_USART_MODE_ASYNCHRONOUS | ARM_USART_DATA_BITS_8 | ARM_USART_PARITY_NONE | 
-                                ARM_USART_STOP_BITS_1 | ARM_USART_FLOW_CONTROL_NONE);
-
-extern USART_HandleTypeDef huart1;
 
 //GPIO10 - BUTTON
 
@@ -66,6 +64,16 @@ extern USART_HandleTypeDef huart1;
 #define LED_OFF 0                                   /**</ LED off. */
 
 volatile bool button_state = false;
+volatile uint32_t led_time = 500;
+// char cmdRxBuffer[255] = {0};
+
+// volatile uint8_t rx_callback = 0;
+// volatile uint8_t tx_callback = 0;
+
+// void HT_USART_Callback(uint32_t event) {
+//     if(event & ARM_USART_EVENT_RECEIVE_COMPLETE)
+//         rx_callback = 1;
+// }
 
 static void HT_GPIO_InitButton(void) {
   GPIO_InitType GPIO_InitStruct = {0};
@@ -143,13 +151,46 @@ void Task1(void *pvParameters) {
 
 
 void Task2(void *pvParameters) {
-    bool led_state = false;
     while (1) {
-        if (xSemaphoreTake(xSemaforo, portMAX_DELAY)) {
-            led_state = !led_state;  // Alterna o estado do LED
-            HT_GPIO_WritePin(LED3_GPIO_PIN, LED3_INSTANCE, led_state);
-        }
+        // if (rx_callback == 1)
+        // {
+        //   led_time = atoi(cmdRxBuffer);
+        //   rx_callback = 0;
+        // }
+        printf("led_time: %d \n",led_time );
+        HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+        vTaskDelay(pdMS_TO_TICKS(led_time));
+        HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+        vTaskDelay(pdMS_TO_TICKS(led_time));
     }
+}
+
+void TaskUart(void *pvParameters)
+{
+  uint8_t rx_buffer_usart;
+  char cmdRxBuffer[20] = {0};
+  uint8_t cmdRxBufferIdx = 0;
+  while (1)
+  {
+    HAL_USART_ReceivePolling(&huart1, &rx_buffer_usart, 1);
+    if (rx_buffer_usart != 0)
+    {
+      printf("%c\n",rx_buffer_usart);
+      cmdRxBuffer[cmdRxBufferIdx] = rx_buffer_usart;
+      cmdRxBufferIdx++;
+      if (rx_buffer_usart == '\r')
+      {
+        printf("Recebido UART: %s \n",cmdRxBuffer);
+        led_time = atoi(cmdRxBuffer);
+        printf("Recebido UART: %s \n",cmdRxBuffer);
+        memset(&cmdRxBuffer, 0, cmdRxBufferIdx);
+        cmdRxBufferIdx = 0;
+        HAL_USART_Control(ARM_USART_CONTROL_PURGE_COMM, 0, &huart1);
+      }
+     
+      rx_buffer_usart = 0;
+    }
+  }
 }
 
 void HT_App(void) {
@@ -163,7 +204,6 @@ void HT_App(void) {
         printf("Case 2: 700ms\r\n");
         printf("Case 3: 1000ms\r\n");
         
-
         __set_BASEPRI(0);
 
         case_num = (char)fgetc(NULL);
@@ -172,60 +212,72 @@ void HT_App(void) {
         switch(case_num) {
             case '0':
                 while(1){
-                  stop_1 = (char)fgetc(NULL);
-                  printf("%c\r\n",stop_1);
-                  if(stop_1 == "p"){
-                    break;
-                  }
-            break;
-                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
-                  delay_us(100000);
-                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
-                  delay_us(100000);
+                    printf("Quantas repetiçoes deseja?");
+                    stop_1 = (char)fgetc(NULL);
+                    printf("%c\r\n",stop_1);
+                    if(stop_1 == NULL){
+                    
+                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+                      delay_us(100000);
+                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+                      delay_us(100000);
+                    }
+                    else{
+                      break;
+                    }
                 }
             break;
             case '1':
                 while(1){
-                  stop_1 = (char)fgetc(NULL);
-                  printf("%c\r\n",stop_1);
-                  if(stop_1 == "p"){
-                    break;
-                  }
-                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
-                  delay_us(400000);
-                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
-                  delay_us(400000);
+                    stop_1 = (char)fgetc(NULL);
+                    printf("%c\r\n",stop_1);
+                    if(stop_1 == NULL){
+                    
+                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+                      delay_us(400000);
+                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+                      delay_us(400000);
+                    }
+                    else{
+                      break;
+                    }
                 }
             break;    
             case '2':
                 while(1){
-                  stop_1 = (char)fgetc(NULL);
-                  printf("%c\r\n",stop_1);
-                  if(stop_1 == "p"){
-                    break;
-                  }
-                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
-                  delay_us(700000);
-                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
-                  delay_us(700000);
+                    stop_1 = (char)fgetc(NULL);
+                    printf("%c\r\n",stop_1);
+                    if(stop_1 == NULL){
+                    
+                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+                      delay_us(700000);
+                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+                      delay_us(700000);
+                    }
+                    else{
+                      break;
+                    }
                 }
             break;
             case '3':
                 while(1){
-                  stop_1 = (char)fgetc(NULL);
-                  printf("%c\r\n",stop_1);
-                  if(stop_1 == "p"){
-                    break;
-                  }
-                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
-                  delay_us(1000000);
-                  HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
-                  delay_us(1000000);
+                     stop_1 = (char)fgetc(NULL);
+                     printf("%c\r\n",stop_1);
+                     if(stop_1 == 1){
+                   
+                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_ON);
+                      delay_us(1000000);
+                      HT_GPIO_WritePin(LED2_GPIO_PIN, LED2_INSTANCE, LED_OFF);
+                      delay_us(1000000);
+                    }
+                    else{
+                      break;
+                    }
                 }
             break;
             default: 
                 printf("Error! Wrong option!\n");
-                break;
+            break;
         }
       printf("SE DESEJAR SAIR, DIGITE *PARA*");
       stop_2 = (char)fgetc(NULL);
@@ -244,7 +296,9 @@ void HT_App(void) {
   \return
 */
 void main_entry(void) {
-  HAL_USART_InitPrint(&huart1, GPR_UART1ClkSel_26M, uart_cntrl, 115200);
+    HAL_USART_InitPrint(&huart1, GPR_UART1ClkSel_26M, uart_cntrl, 115200);
+    // HAL_USART_IRQnEnable(&huart1, (USART_IER_RX_DATA_REQ_Msk | USART_IER_RX_TIMEOUT_Msk | USART_IER_RX_LINE_STATUS_Msk));
+    // HAL_USART_Receive_IT(cmdRxBuffer, 10);
 
     printf("Exemplo FreeRTOS\n");
 //  xSemaforo = xSemaphoreCreateBinary();
@@ -257,13 +311,16 @@ void main_entry(void) {
     HT_GPIO_InitLed();
     HT_GPIO_InitLed2();
     HT_GPIO_InitLed3();
-    HT_App();
+    // HT_App();
     slpManNormalIOVoltSet(IOVOLT_3_30V);
 
 
 
-    xTaskCreate(Task1, "Blink", 128, NULL, 1, NULL);
-    xTaskCreate(Task2, "Print", 128, NULL, 1, NULL);
+    // xTaskCreate(Task1, "Button", 128, NULL, 1, NULL);
+    xTaskCreate(Task2, "Blink", 1024, NULL, 2, NULL);
+    xTaskCreate(TaskUart, "TaskUart", 1024, NULL, 1, NULL);
+    
+    printf("Inicializou Tasks\n");
 
     vTaskStartScheduler();
     
