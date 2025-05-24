@@ -137,20 +137,21 @@ static void HT_GPIO_InitLed3(void) {
 
 
 void Task1(void *pvParameters) {
-    bool estado_anterior = 1;
+    char case_num;
     while (1) {
-        bool estado_atual = !HT_GPIO_PinRead(BUTTON_INSTANCE, BUTTON_PIN);  // Pressionado = 0
-        if (estado_atual == 0 && estado_anterior == 1) {  // Transição de solto → pressionado
-            xSemaphoreGive(xSemaforo);  // Sinaliza para a Task2
-        }
-        estado_anterior = estado_atual;
-        vTaskDelay(pdMS_TO_TICKS(50));  // Pequeno delay para debounce
+        button_state = (bool) HT_GPIO_PinRead(BUTTON_INSTANCE, BUTTON_PIN);
+        //vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
-
-
 void Task2(void *pvParameters) {
+    while (1)
+    {   
+        HT_GPIO_WritePin(LED_GPIO_PIN, LED_INSTANCE, button_state);
+        //vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+void Task3(void *pvParameters) {
     while (1) {
         // if (rx_callback == 1)
         // {
@@ -164,7 +165,6 @@ void Task2(void *pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(led_time));
     }
 }
-
 void TaskUart(void *pvParameters)
 {
   uint8_t rx_buffer_usart;
@@ -218,8 +218,9 @@ void main_entry(void) {
 
 
 
-    // xTaskCreate(Task1, "Button", 128, NULL, 1, NULL);
-    xTaskCreate(Task2, "Blink", 1024, NULL, 2, NULL);
+    xTaskCreate(Task1, "Button", 128, NULL, 1, NULL);
+    xTaskCreate(Task2, "Blink", 128, NULL, 1, NULL);
+    xTaskCreate(Task3, "Blink", 1024, NULL, 1, NULL);
     xTaskCreate(TaskUart, "TaskUart", 1024, NULL, 1, NULL);
     
     printf("Inicializou Tasks\n");

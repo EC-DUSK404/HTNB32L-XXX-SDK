@@ -62,6 +62,7 @@ static void HT_Timer_Init(int seconds) {
     TIMER_GetDefaultConfig(&timerConfig);
     timerConfig.reloadOption = TIMER_ReloadOnMatch0;
     timerConfig.match0 = 0x8000*seconds;
+    // timerConfig.match0 = 0x20*seconds;
 
     TIMER_Init(0, &timerConfig);
 
@@ -76,19 +77,24 @@ static void HT_Timer_Init(int seconds) {
 }
 
 void HT_Timer_App(void) {
+    uint32_t timerValue = 0;
+    uint32_t timerValueOld = 0;
     ht_printf("Timer Start!\n");
 
-    HT_Timer_Init(TIMER_N_SECONDS); // 1s
+    HT_Timer_Init(10); // 1s
     TIMER_Start(TIMER_INSTANCE);  
 
     while(1) {
-      
-      if(timerInterrupt) {
-        timerInterrupt = 0;
-        ht_printf("IRQn: %d\n", ++irqn_cnt);
-
-        TIMER_Start(0);
+      // ht_printf("Timer Count: %u\n",TIMER_GetCount(TIMER_INSTANCE));
+      timerValue = TIMER_GetCount(TIMER_INSTANCE);
+      if(timerValue - timerValueOld >= 32728) {
+        // timerInterrupt = 0;
+        // ht_printf("IRQn: %d\n", ++irqn_cnt);
+        ht_printf("IRQn: %u\n",TIMER_GetCount(TIMER_INSTANCE));
+        timerValueOld = timerValue;
+        // TIMER_Start(0);
       }
+      // delay_us(100000);
     }
     
 }
