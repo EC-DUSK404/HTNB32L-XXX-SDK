@@ -14,6 +14,10 @@
  */
 
 #include "HT_Fsm.h"
+#include "adc_qcx212.h"
+#include "HT_adc_qcx212.h"
+#define DEMO_ADC_CHANNEL ADC_ChannelAio2  
+//#include "HT_ADC_Demo.h"
 
 /* Function prototypes  ------------------------------------------------------------------*/
 
@@ -63,6 +67,7 @@ static void HT_FSM_MQTTWritePayload(uint8_t *ptr, uint8_t size);
  * \retval none.
  *******************************************************************/
 static void HT_FSM_UpdateUserLedState(void);
+static void HT_FSM_MQT_LDR(void);
 
 /*!******************************************************************
  * \fn static void HT_FSM_LedStatus(HT_Led_Type led, uint16_t state)
@@ -165,6 +170,14 @@ static void HT_FSM_WaitForButtonState(void);
  *******************************************************************/
 static void HT_FSM_CheckSocketState(void);
 
+
+//coisas do adc
+static void HT_ADC_ConversionCallback(uint32_t result);
+static void HT_ADC_Init(uint8_t channel);
+
+static uint32_t ldrValue = 0;
+char payload[32];
+
 /* ---------------------------------------------------------------------------------------*/
 
 static MQTTClient mqttClient;
@@ -180,14 +193,15 @@ static const char username[] = {""};
 static const char password[] = {""};
 
 //MQTT broker host address
-static const char addr[] = {"test.mosquitto.org"};
-static char topic[25] = {0};
+//static const char addr[] = {"test.mosquitto.org"};
+static const char addr[] = {"131.255.82.115"};
+static char topic[50] = {0};
 
 // Blue button topic where the digital twin will transmit its messages.
-char topic_bluebutton_sw[] = {"daniel_htnb32l_bluebutton_sw"};
+char topic_bluebutton_sw[] = {"hana/daniel/htnb32l_bluebutton_sw"};
 
 // White button topic where the digital twin will transmit its messages.
-char topic_whitebutton_sw[] = {"daniel_htnb32l_whitebutton_sw"};
+char topic_whitebutton_sw[] = {"hana/daniel/htnb32l_whitebutton_sw"};
 
 static const char blue_button_str[] = {"Blue"};
 static const char white_button_str[] = {"White"};
@@ -218,6 +232,72 @@ static volatile uint8_t white_button_state = 0;
 static StaticTask_t yield_thread;
 static uint8_t yieldTaskStack[1024*4];
 
+
+// coisas do adc
+ int32_t HT_ADC_StartConversion(adc_channel_t channel, adc_user_t userID);
+ uint32_t HAL_ADC_CalibrateRawCode(uint32_t input);
+
+static volatile uint32_t callback = 0;
+static volatile uint32_t user_adc_channel = 0;
+
+static adc_config_t adcConfig;
+
+static void HT_ADC_Init(uint8_t channel) {
+    ADC_GetDefaultConfig(&adcConfig);
+
+    adcConfig.channelConfig.aioResDiv = ADC_AioResDivRatio3Over16; 
+
+    ADC_ChannelInit(channel, ADC_UserAPP, &adcConfig, HT_ADC_ConversionCallback);
+}
+
+
+static void HT_ADC_ConversionCallback(uint32_t result) {
+    callback |= DEMO_ADC_CHANNEL;
+    user_adc_channel = result;
+}
+
+static uint32_t HT_ADC_GetVoltageValue(uint32_t ad_value) {
+    uint32_t value;
+    value = HAL_ADC_CalibrateRawCode(ad_value);
+    return (uint32_t)(value*16/3);
+}
+
+
+
+void Task1(void *pvParameters) {
+    while (1) {
+        printf("Tarefa 1 executando...\n");
+        HT_FSM_MQT_LDR();
+        printf("oloko");
+        vTaskDelay(pdMS_TO_TICKS(2000));         // Delay de 500ms
+        //osDelay(pdMS_TO_TICKS(1000));
+    }
+}
+void Task2(void *pvParameters) {
+
+    printf("Tarefa 2 executando...\n");
+    printf("ADC example start!\n");
+
+    HT_ADC_Init(DEMO_ADC_CHANNEL);
+
+    while (1) {
+
+            callback = 0;
+
+            HT_ADC_StartConversion(DEMO_ADC_CHANNEL, ADC_UserAPP);
+            while(callback != (DEMO_ADC_CHANNEL));
+
+            ldrValue = HT_ADC_GetVoltageValue(user_adc_channel);
+            printf("ADC Value: %dmv\n", ldrValue);
+            //osDelay(pdMS_TO_TICKS(500));
+             vTaskDelay(pdMS_TO_TICKS(2000));
+
+        vTaskDelay(pdMS_TO_TICKS(2000));         // Delay de 500ms
+    
+    }
+}
+
+
 static void HT_YieldThread(void *arg) {
     while (1) {
         // Wait function for 10ms to check if some message arrived in subscribed topic
@@ -246,17 +326,34 @@ static void HT_FSM_MQTTWritePayload(uint8_t *ptr, uint8_t size) {
     memcpy(mqtt_payload, ptr, size);
 }
 
+static void HT_FSM_MQT_LDR(void) {
+    sprintf(payload, "LDR: %u", ldrValue);
+    HT_FSM_MQTTWritePayload((uint8_t *)payload, strlen(payload));
+    printf("aqui\n");
+    memset(topic, 0, sizeof(topic));
+    printf("aqui\n");
+    sprintf(topic, "hana/daniel/htnb32l_LDR_state");
+    printf("aqui\n");
+
+    HT_MQTT_Publish(&mqttClient, (char *)topic, mqtt_payload, strlen((char *)mqtt_payload), QOS0, 0, 0, 0);
+    printf("PuBLICANDO");
+
+    // HT_Yield_Thread(NULL);
+    
+    // HT_MQTT_Subscribe(&mqttClient, topic, QOS0);
+}
+
 static void HT_FSM_UpdateUserLedState(void) {
     char payload[] = {"GetState"};
 
     HT_FSM_MQTTWritePayload((uint8_t *)payload, strlen(payload));
     memset(topic, 0, sizeof(topic));
-    sprintf(topic, "daniel_htnb32l_get_state");
+    sprintf(topic, "hana/daniel/htnb32l_get_state");
 
     HT_MQTT_Publish(&mqttClient, (char *)topic, mqtt_payload, strlen((char *)mqtt_payload), QOS0, 0, 0, 0);
 
     memset(topic, 0, sizeof(topic));
-    sprintf(topic, "daniel_htnb32l_set_state");
+    sprintf(topic, "hana/daniel/htnb32l_set_state");
     
     HT_MQTT_Subscribe(&mqttClient, topic, QOS0);
     HT_MQTT_Subscribe(&mqttClient, topic_bluebutton_sw, QOS0);
@@ -265,7 +362,10 @@ static void HT_FSM_UpdateUserLedState(void) {
     HT_Yield_Thread(NULL);
     printf("Waiting for callback...\n");
     
-    while(!subscribe_callback);
+     while(!subscribe_callback)   //  while(!subscribe_callback);
+    {
+        osDelay(pdMS_TO_TICKS(1000));
+    }
 
     subscribe_callback = 0;
 
@@ -372,7 +472,7 @@ static void HT_FSM_PushButtonHandleState(void) {
         HT_FSM_MQTTWritePayload((uint8_t *)blue_button_str, strlen(blue_button_str));
 
         memset(topic, 0, sizeof(topic));
-        sprintf(topic, "daniel_htnb32l_bluebutton_fw");
+        sprintf(topic, "hana/daniel/htnb32l_bluebutton_fw");
 
         // Change to publish state
         state = HT_MQTT_PUBLISH_STATE;
@@ -386,7 +486,7 @@ static void HT_FSM_PushButtonHandleState(void) {
         HT_FSM_MQTTWritePayload((uint8_t *)white_button_str, strlen(white_button_str));
 
         memset(topic, 0, sizeof(topic));
-        sprintf(topic, "daniel_htnb32l_whitebutton_fw");
+        sprintf(topic, "hana/daniel/htnb32l_whitebutton_fw");
         
         // Change to publish state
         state = HT_MQTT_PUBLISH_STATE;
@@ -420,6 +520,11 @@ void HT_Fsm(void) {
         printf("\n MQTT Connection Error!\n");
         while(1);
     }
+
+
+    xTaskCreate(Task1, "ldr", 1024, NULL, 1, NULL); 
+    xTaskCreate(Task2, "conversorldr", 2048, NULL, 1, NULL);
+
 
     // Init irqn after connection
     HT_GPIO_ButtonInit();
@@ -461,6 +566,7 @@ void HT_Fsm(void) {
         default:
             break;
         }
+        vTaskDelay(pdMS_TO_TICKS(50));
 
     }
 }
